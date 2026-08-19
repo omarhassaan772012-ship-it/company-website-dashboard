@@ -13,19 +13,43 @@ const emptyForm = {
   body: "",
 };
 
+const requestTimeout = 10000;
+
+const fetchWithTimeout = (url, options = {}) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeout);
+
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+    clearTimeout(timeout);
+  });
+};
+
 export default function Dashboard() {
   const [articles, setArticles] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isLoadingArticles, setIsLoadingArticles] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
+  const [error, setError] = useState("");
+
+  const getErrorMessage = async (response) => {
+    try {
+      const data = await response.json();
+      return data?.message || `حدث خطأ في الطلب (${response.status})`;
+    } catch {
+      return `حدث خطأ في الطلب (${response.status})`;
+    }
+  };
 
   const loadArticles = async () => {
+    setIsLoadingArticles(true);
+    setError("");
+
     try {
-      const response = await fetch(API_URL);
+      const response = await fetchWithTimeout(API_URL);
       if (!response.ok) {
-        console.error("Failed to fetch articles", response.status);
-        setArticles([]);
-        return;
+        throw new Error(await getErrorMessage(response));
       }
 
       const data = await response.json();
@@ -39,6 +63,13 @@ export default function Dashboard() {
     } catch (err) {
       console.error(err);
       setArticles([]);
+      setError(
+        err.name === "AbortError"
+          ? "استغرق تحميل الأعمال وقتًا طويلًا. تأكد من تشغيل الـ API."
+          : "تعذر تحميل الأعمال. تأكد من اتصال الـ API."
+      );
+    } finally {
+      setIsLoadingArticles(false);
     }
   };
 
@@ -56,17 +87,31 @@ export default function Dashboard() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setLoading(true);
+    setError("");
 
-    await fetch(editingId ? `${API_URL}/${editingId}` : API_URL, {
-      method: editingId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const response = await fetchWithTimeout(
+        editingId ? `${API_URL}/${editingId}` : API_URL,
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        }
+      );
 
-    setForm(emptyForm);
-    setEditingId(null);
-    await loadArticles();
-    setLoading(false);
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      setForm(emptyForm);
+      setEditingId(null);
+      await loadArticles();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "تعذر حفظ العمل.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const editArticle = (article) => {
@@ -82,16 +127,32 @@ export default function Dashboard() {
   const deleteArticle = async (id) => {
     if (!confirm("هل تريد حذف هذا العمل؟")) return;
 
-    await fetch(`${API_URL}/${id}`, {
-      method: "DELETE",
-    });
+    setDeletingId(id);
+    setError("");
 
-    loadArticles();
+    try {
+      const response = await fetchWithTimeout(`${API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      await loadArticles();
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "تعذر حذف العمل.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
     <main className={styles.dashboard}>
       <h1>Works Dashboard</h1>
+
+      {error && <p className={styles.error}>{error}</p>}
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <input
@@ -126,7 +187,7 @@ export default function Dashboard() {
           required
         />
 
-        <button disabled={loading}>
+          <button disabled={loading || deletingId !== null}>
           {editingId ? "حفظ التعديل" : "إضافة العمل"}
         </button>
 
@@ -145,6 +206,10 @@ export default function Dashboard() {
       </form>
 
       <section className={styles.grid}>
+        {isLoadingArticles && <p>جاري تحميل الأعمال...</p>}
+        {!isLoadingArticles && !error && articles.length === 0 && (
+          <p>لا توجد أعمال بعد.</p>
+        )}
         {articles.map((article) => (
           <article className={styles.card} key={article._id}>
             <img src={article.image} alt={article.title} />
@@ -152,12 +217,18 @@ export default function Dashboard() {
               <small>{article.Type}</small>
               <h2>{article.title}</h2>
               <p>{article.body}</p>
-              <button onClick={() => editArticle(article)}>تعديل</button>
+              <button
+                disabled={loading || deletingId !== null}
+                onClick={() => editArticle(article)}
+              >
+                تعديل
+              </button>
               <button
                 className={styles.delete}
+                disabled={loading || deletingId !== null}
                 onClick={() => deleteArticle(article._id)}
               >
-                حذف
+                {deletingId === article._id ? "جاري الحذف..." : "حذف"}
               </button>
             </div>
           </article>

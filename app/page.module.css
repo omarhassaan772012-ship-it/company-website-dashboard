@@ -10,6 +10,15 @@
   font-size: 48px;
 }
 
+.error {
+  max-width: 650px;
+  margin: 0 0 20px;
+  padding: 12px 15px;
+  border: 1px solid #e2a3ad;
+  background: #fff0f2;
+  color: #8b1021;
+}
+
 .form {
   display: grid;
   gap: 15px;
@@ -36,6 +45,12 @@
   background: #000;
   color: #fff;
   cursor: pointer;
+}
+
+.form button:disabled,
+.card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .cancel {
