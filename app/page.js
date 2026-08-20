@@ -119,6 +119,8 @@ export default function Dashboard() {
       title: article.title,
       Type: article.Type,
       image: article.image,
+      image2: article.image2,
+      image3: article.image3,
       body: article.body,
     });
     setEditingId(article._id);
@@ -177,6 +179,22 @@ export default function Dashboard() {
           value={form.image}
           onChange={handleChange}
           required
+        />
+
+        <input
+          name="image2"
+          placeholder="رابط صورة العمل 2"
+          value={form.image2}
+          onChange={handleChange}
+          
+        />
+
+        <input
+          name="image3"
+          placeholder="رابط صورة العمل 3"
+          value={form.image3}
+          onChange={handleChange}
+          
         />
 
         <textarea
