@@ -141,6 +141,7 @@ export default function Dashboard() {
       image: article.image,
       image2: article.image2,
       image3: article.image3,
+      video: article.video,
       body: article.body,
     });
     setEditingId(article._id);
@@ -219,6 +220,14 @@ export default function Dashboard() {
           name="image3"
           placeholder="رابط صورة العمل 3"
           value={form.image3}
+          onChange={handleChange}
+          
+        />
+
+        <input
+          name="video"
+          placeholder="رابط الفيديو"
+          value={form.video}
           onChange={handleChange}
           
         />
