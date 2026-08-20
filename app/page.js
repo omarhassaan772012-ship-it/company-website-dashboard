@@ -12,6 +12,7 @@ const emptyForm = {
   image: "",
   image2: "",
   image3: "",
+  video: "",
   body: "",
 };
 
