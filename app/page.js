@@ -19,9 +19,18 @@ const fetchWithTimeout = (url, options = {}) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeout);
 
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => {
-    clearTimeout(timeout);
-  });
+  return fetch(url, { ...options, signal: controller.signal })
+    .catch((err) => {
+      if (err.name === "AbortError") {
+        const error = new Error("Request timeout");
+        error.name = "AbortError";
+        throw error;
+      }
+      throw err;
+    })
+    .finally(() => {
+      clearTimeout(timeout);
+    });
 };
 
 export default function Dashboard() {
@@ -61,13 +70,16 @@ export default function Dashboard() {
 
       setArticles(list);
     } catch (err) {
-      console.error(err);
+      console.error("Load articles error:", err);
       setArticles([]);
-      setError(
-        err.name === "AbortError"
-          ? "استغرق تحميل الأعمال وقتًا طويلًا. تأكد من تشغيل الـ API."
-          : "تعذر تحميل الأعمال. تأكد من اتصال الـ API."
-      );
+      
+      if (err.name === "AbortError") {
+        setError("استغرق تحميل الأعمال وقتًا طويلًا. تأكد من تشغيل الـ API.");
+      } else if (err instanceof TypeError) {
+        setError("تعذر الاتصال بـ API. تحقق من الإنترنت والـ API URL.");
+      } else {
+        setError(err.message || "تعذر تحميل الأعمال. حاول مجددًا.");
+      }
     } finally {
       setIsLoadingArticles(false);
     }
@@ -107,8 +119,14 @@ export default function Dashboard() {
       setEditingId(null);
       await loadArticles();
     } catch (err) {
-      console.error(err);
-      setError(err.message || "تعذر حفظ العمل.");
+      console.error("Submit error:", err);
+      if (err.name === "AbortError") {
+        setError("انتهت مهلة الطلب. حاول مجددًا.");
+      } else if (err instanceof TypeError) {
+        setError("تعذر الاتصال بـ API. تحقق من الإنترنت.");
+      } else {
+        setError(err.message || "تعذر حفظ العمل. حاول مجددًا.");
+      }
     } finally {
       setLoading(false);
     }
@@ -143,8 +161,14 @@ export default function Dashboard() {
 
       await loadArticles();
     } catch (err) {
-      console.error(err);
-      setError(err.message || "تعذر حذف العمل.");
+      console.error("Delete error:", err);
+      if (err.name === "AbortError") {
+        setError("انتهت مهلة الطلب. حاول مجددًا.");
+      } else if (err instanceof TypeError) {
+        setError("تعذر الاتصال بـ API. تحقق من الإنترنت.");
+      } else {
+        setError(err.message || "تعذر حذف العمل. حاول مجددًا.");
+      }
     } finally {
       setDeletingId(null);
     }
