@@ -10,6 +10,8 @@ const emptyForm = {
   title: "",
   Type: "",
   image: "",
+  image2: "",
+  image3: "",
   body: "",
 };
 
